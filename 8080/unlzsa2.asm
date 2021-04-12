@@ -1,4 +1,4 @@
-;Speed-optimized LZSA2 Intel 8080 decoder version by Ivan Gorodetsky
+;LZSA2 Intel 8080 decoder version by Ivan Gorodetsky
 ;Based on LZSA2 decompressor by spke
 ;input: 	hl=compressed data start
 ;			de=uncompressed destination start
