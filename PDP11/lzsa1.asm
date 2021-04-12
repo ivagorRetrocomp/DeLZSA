@@ -1,4 +1,4 @@
-;Size-optimized LZSA1 PDP-11 decoder version by Ivan Gorodetsky
+;LZSA1 PDP-11 decoder version by Ivan Gorodetsky
 ;
 ;usage:
 ; mov #src_adr,r1
