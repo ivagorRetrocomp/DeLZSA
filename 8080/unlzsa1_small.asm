@@ -6,9 +6,10 @@
 ;v 1.1 - 2019-10-02 (-1 byte)
 ;v 1.2 - 2019-10-27 (-2 bytes and self-modifying code removed)
 ;v 1.4 - 2021-02-26 (+5 bytes and faster)
+;v 1.5 - 2022-06-14 (forward version -1 byte)
 ;
 ;compress forward with <-f1 -r> options
-;87 bytes - forward version
+;86 bytes - forward version
 ;
 ;compress backward with <-f1 -r -b> options
 ;92 bytes - backward version
@@ -63,7 +64,9 @@ ReadToken:
 			rrc\ rrc\ rrc\ rrc
 			cpi 7
 			cz ReadLongBA
+#IFDEF BACKWARD_DECOMPRESS
 			mov c,a
+#ENDIF
 			call BLOCKCOPY
 NoLiterals:
 			pop psw
@@ -81,7 +84,9 @@ ShortOffset:
 			adi 3
 			cpi 15+3
 			cz ReadLongBA
+#IFDEF BACKWARD_DECOMPRESS
 			mov c,a
+#ENDIF
 			xthl
 			ADD_OFFSET
 			call BLOCKCOPY
@@ -100,6 +105,9 @@ ReadLongBA:
 			pop d
 			ret
 BLOCKCOPY:
+#IFNDEF BACKWARD_DECOMPRESS
+			mov c,a
+#ENDIF
 			dcx b
 			inr c
 			inr b
