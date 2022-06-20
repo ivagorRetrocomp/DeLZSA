@@ -1,15 +1,18 @@
-;LZSA2 Intel 8080 decoder version by Ivan Gorodetsky
+;Speed-optimized LZSA2 Intel 8080 decoder version by Ivan Gorodetsky
 ;Based on LZSA2 decompressor by spke
 ;input: 	hl=compressed data start
 ;			de=uncompressed destination start
 ;v 1.1 - 2019-09-22
 ;v 1.3 - 2021-02-26 (+13 bytes and much faster, merged with fast version)
-;
+;v 1.4 - 2022-06-10 (self-modifying version -5 bytes and slightly faster; "rom-friendly" version -1 byte)
+
 ;compress forward with <-f2 -r> options
-;200 bytes - forward version
+;self-modifying forward version: 194 bytes
+;"rom-friendly" forward version: 196 bytes code + 3 bytes variables
 ;
 ;compress backward with <-f2 -r -b> options
-;205 bytes - backward version
+;self-modifying backward version: 199 bytes
+;"rom-friendly" backward version: 201 bytes code + 3 bytes variables
 ;
 ;Compile with The Telemark Assembler (TASM) 3.2
 ;
@@ -32,8 +35,9 @@
 ;     misrepresented as being the original software.
 ;  3. This notice may not be removed or altered from any source distribution.
 
-
 ;#DEFINE BACKWARD_DECOMPRESS
+;#DEFINE AVOID_SELFMODIFYING_CODE
+
 
 #IFNDEF BACKWARD_DECOMPRESS
 
@@ -75,13 +79,19 @@ OffsetReadE:
 			mov e,m
 			NEXT_HL
 SaveOffset:
-			xchg\ shld IY\ xchg
+			xchg\ shld Offset
+#IFDEF AVOID_SELFMODIFYING_CODE
 MatchLen:
+			xchg
+#ELSE
+			xchg
+MatchLen:
+#ENDIF
 			ani 00000111b
 			adi 2
 			cpi 7+2
 			cz ExtendedCode
-CopyMatch:
+;CopyMatch:
 			mov c,a
 			xthl
 			ADD_OFFSET
@@ -143,7 +153,12 @@ CASE11x:
 			cpi 11100000b
 			jc CASE110
 CASE111:
-			xchg\ lhld IY\ xchg
+#IFDEF AVOID_SELFMODIFYING_CODE
+			xchg\ lhld Offset
+#ELSE
+Offset		.equ $+1
+			lxi d,0
+#ENDIF
 			jmp MatchLen
 ExtendedCode:
 			call ReadNibble
@@ -167,7 +182,12 @@ ExtraByte:
 			pop d
 ReadNibble:
 			mov c,a
+#IFDEF AVOID_SELFMODIFYING_CODE
 			lda A1
+#ELSE
+A1			.equ $+1
+			mvi a,0
+#ENDIF
 			ora a
 			jp UpdateNibble
 			rar
@@ -184,8 +204,10 @@ UpdateNibble:
 			rrc\ rrc\ rrc\ rrc
 			ret
 
-IY			.dw 0
+#IFDEF AVOID_SELFMODIFYING_CODE
+Offset		.dw 0
 A1			.db 0
+#ENDIF
 
 
 			.end
