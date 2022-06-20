@@ -7,12 +7,13 @@
 ;v 1.2 - 2021-02-23 (-25 bytes and slightly faster)
 ;v 1.3 - 2021-02-25 (-6 bytes, tnanks to Improver)
 ;v 1.4 - 2021-02-25 (+12 bytes, bug fix)
+;v 1.5 - 2022-06-14 (faster, +7 bytes forward/+12 bytes backward)
 ;
 ;compress forward with <-f1 -r> options
-;171 bytes - forward version
+;178 bytes - forward version
 ;
 ;compress backward with <-f1 -r -b> options
-;176 bytes - backward version
+;188 bytes - backward version
 ;
 ;Compile with The Telemark Assembler (TASM) 3.2
 ;
@@ -61,13 +62,10 @@ ShortOffset:
 			mvi d,0FFh\ adi 3\ cpi 15+3\ jnc LongerMatch
 CopyMatch:
 			mov c,a
-CopyMatch_UseC:
 			NEXT_HL\ xthl
 			ADD_OFFSET
-			mov a,m\ NEXT_HL\ stax d\ NEXT_DE\ dcx b
-			mov a,m\ NEXT_HL\ stax d\ NEXT_DE\ dcx b
-			dcx b
-			inr c
+			mov a,m\ NEXT_HL\ stax d\ NEXT_DE\ dcr c
+			mov a,m\ NEXT_HL\ stax d\ NEXT_DE\ dcr c
 BLOCKCOPY1:
 			mov a,m
 			stax d
@@ -75,11 +73,7 @@ BLOCKCOPY1:
 			NEXT_DE
 			dcr c
 			jnz BLOCKCOPY1
-			xra a
-			ora b
-			jz $+7
-			dcr b
-			jmp BLOCKCOPY1
+AfterBLOCKCOPY1:
 			pop h
 ReadToken:
 			mov a,m\ ani 70h\ jz NoLiterals 
@@ -95,46 +89,61 @@ ReadToken:
 			dcr c
 			jnz $-5
 			push d\ mov e,m
-			mvi a,8Fh\ ana b\ mvi b,0\ jp ShortOffset
+			mvi a,8Fh\ ana b\ mov b,c\ jp ShortOffset
 LongOffset:
 			NEXT_HL\ mov d,m
 			adi -128+3\ cpi 15+3\ jc CopyMatch
 LongerMatch:
 			NEXT_HL\ add m\ jnc CopyMatch
-			mov b,a\ NEXT_HL\ mov c,m\ jnz CopyMatch_UseC
+			mov b,a\ NEXT_HL\ mov c,m\ jnz CopyMatch_UseBC
 			NEXT_HL\ mov b,m
-			mov a,b\ ora c\ jnz CopyMatch_UseC
+			mov a,b\ ora c\ jnz CopyMatch_UseBC
 			pop d\ ret
+CopyMatch_UseBC:
+			NEXT_HL\ xthl
+			ADD_OFFSET
+			call BLOCKCOPYbc
+			jmp AfterBLOCKCOPY1
 MoreLiterals:		
 			xra m
 			push psw
 			mvi a,7\ NEXT_HL\ add m\ jc ManyLiterals
-CopyLiterals:
 			mov c,a
-CopyLiterals_UseC:
 			NEXT_HL
-			dcx b
-			inr c
-BLOCKCOPY2:
+BLOCKCOPY2c:
 			mov a,m
 			stax d
 			NEXT_HL
 			NEXT_DE
 			dcr c
-			jnz BLOCKCOPY2
-			xra a
-			ora b
-			jz $+7
-			dcr b
-			jmp BLOCKCOPY2
+			jnz BLOCKCOPY2c
+AfterBLOCKCOPY2:
 			pop psw
 			push d\ mov e,m
 			jp ShortOffset
 			jmp LongOffset
 
 ManyLiterals:
-			mov b,a\ NEXT_HL\ mov c,m\ jnz CopyLiterals_UseC
-			NEXT_HL\ mov b,m\ jmp CopyLiterals_UseC
+			mov b,a\ NEXT_HL\ mov c,m\ jnz CopyLiterals
+			NEXT_HL\ mov b,m
+CopyLiterals:
+			NEXT_HL
+			call BLOCKCOPYbc
+			jmp AfterBLOCKCOPY2
 
+BLOCKCOPYbc:
+			dcx b
+			inr c
+			inr b
+BLOCKCOPYbc1:
+			mov a,m
+			stax d
+			NEXT_HL
+			NEXT_DE
+			dcr c
+			jnz BLOCKCOPYbc1
+			dcr b
+			jnz BLOCKCOPYbc1
+			ret
 
 			.end
